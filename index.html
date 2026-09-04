@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Apply Ops</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍁</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#FAF8F5; --card:#FFFFFF; --ink:#1C1917; --ink2:#57534E; --ink3:#8A8580;
+  --line:#E7E2DB; --line2:#D6D0C7;
+  --accent:#B42B36; --accent-ink:#FFFFFF; --accent-soft:#F7E9EA;
+  --ok:#2E7D4F; --ok-soft:#E5F2EA; --warn:#B07908; --warn-soft:#F8EFDB;
+  --info:#3D5A80; --info-soft:#E8EEF5;
+  --skip:#8A8580; --skip-soft:#EFEDE9;
+  --sheet-shadow:0 -12px 40px rgba(28,25,23,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#171412; --card:#211D1A; --ink:#EDE9E3; --ink2:#B3ACA3; --ink3:#7D766E;
+    --line:#332E29; --line2:#453F38;
+    --accent:#E05A64; --accent-ink:#1C1214; --accent-soft:#3A2225;
+    --ok:#5CB884; --ok-soft:#1E3126; --warn:#D9A93F; --warn-soft:#352B14;
+    --info:#8FAECC; --info-soft:#1F2833;
+    --skip:#7D766E; --skip-soft:#2A2622;
+    --sheet-shadow:0 -12px 40px rgba(0,0,0,.5);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:'Public Sans',system-ui,-apple-system,sans-serif;
+  font-size:15px; line-height:1.45;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
+.wrap{max-width:640px;margin:0 auto;padding:0 14px 90px}
+header.top{
+  position:sticky;top:0;z-index:20;background:var(--paper);
+  border-bottom:1px solid var(--line);
+  padding-top:env(safe-area-inset-top);
+}
+.brand{display:flex;align-items:center;gap:10px;max-width:640px;margin:0 auto;padding:12px 14px 6px}
+.brand h1{
+  font-family:'Bricolage Grotesque','Public Sans',sans-serif;
+  font-weight:800;font-size:22px;margin:0;letter-spacing:-.02em;
+}
+.brand h1 .dot{color:var(--accent)}
+.brand .sync{margin-left:auto;font-size:11px;color:var(--ink3);font-family:'IBM Plex Mono',monospace}
+.iconbtn{appearance:none;border:0;background:none;color:var(--ink2);cursor:pointer;font-size:16px;padding:4px}
+nav.tabs{display:flex;gap:2px;max-width:640px;margin:0 auto;padding:0 8px}
+nav.tabs button{
+  appearance:none;border:0;background:none;color:var(--ink2);
+  font:600 13px 'Public Sans',sans-serif;letter-spacing:.02em;
+  padding:10px 12px;border-bottom:2px solid transparent;cursor:pointer;
+}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:6px}
+nav.tabs button .n{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink3);margin-left:4px}
+
+.panel{display:none}
+.panel.active{display:block}
+
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:14px 0 10px}
+.filters input[type=search]{
+  flex:1 1 100%;padding:9px 12px;border:1px solid var(--line2);border-radius:10px;
+  background:var(--card);color:var(--ink);font:400 14px 'Public Sans',sans-serif;
+}
+.filters input[type=search]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.chip{
+  appearance:none;border:1px solid var(--line2);background:var(--card);color:var(--ink2);
+  font:600 12px 'Public Sans',sans-serif;padding:6px 11px;border-radius:999px;cursor:pointer;
+}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+select.chip{padding:6px 8px}
+
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;margin-bottom:8px;cursor:pointer;
+  display:flex;flex-direction:column;gap:5px;
+}
+.card:active{border-color:var(--line2)}
+.card .row1{display:flex;gap:8px;align-items:baseline}
+.card .title{font-weight:600;font-size:14.5px;flex:1;min-width:0}
+.card .emp{color:var(--ink2);font-size:13px}
+.card .meta{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--ink3)}
+.card .meta .mono{font-size:11.5px}
+.badges{display:flex;gap:6px;flex-wrap:wrap}
+.badge{font:600 10.5px 'Public Sans',sans-serif;letter-spacing:.04em;text-transform:uppercase;
+  padding:2.5px 8px;border-radius:6px}
+.b-lmia{background:var(--warn-soft);color:var(--warn)}
+.b-lmiac{background:var(--warn);color:var(--paper)}
+.b-applied{background:var(--ok-soft);color:var(--ok)}
+.b-short{background:var(--info-soft);color:var(--info)}
+.b-tailor{background:var(--accent-soft);color:var(--accent)}
+.b-skip{background:var(--skip-soft);color:var(--skip)}
+.b-src{background:var(--skip-soft);color:var(--ink3)}
+.b-grade{background:var(--ink);color:var(--paper)}
+
+.empty{color:var(--ink3);text-align:center;padding:40px 20px;font-size:14px}
+.morebtn{width:100%;margin:6px 0 20px;padding:11px;border-radius:10px;border:1px solid var(--line2);
+  background:var(--card);color:var(--ink2);font:600 13px 'Public Sans',sans-serif;cursor:pointer}
+
+/* bottom sheet */
+.backdrop{position:fixed;inset:0;background:rgba(20,16,14,.45);z-index:30;opacity:0;pointer-events:none;transition:opacity .18s}
+.backdrop.show{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:31;background:var(--card);
+  border-radius:18px 18px 0 0;box-shadow:var(--sheet-shadow);
+  max-width:640px;margin:0 auto;max-height:82vh;overflow-y:auto;
+  transform:translateY(105%);transition:transform .22s ease-out;
+  padding:10px 18px calc(20px + env(safe-area-inset-bottom));
+}
+.sheet.show{transform:translateY(0)}
+.sheet .grab{width:36px;height:4px;border-radius:2px;background:var(--line2);margin:4px auto 14px}
+.sheet h2{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:19px;margin:0 0 2px;text-wrap:balance}
+.sheet .sub{color:var(--ink2);font-size:14px;margin-bottom:10px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px;margin:12px 0}
+.kv dt{color:var(--ink3)}
+.kv dd{margin:0}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.abtn{
+  appearance:none;border:0;border-radius:11px;padding:13px 10px;cursor:pointer;
+  font:700 14px 'Public Sans',sans-serif;text-align:center;text-decoration:none;display:block;
+}
+.abtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.abtn[disabled]{opacity:.5;cursor:default}
+.a-open{grid-column:1/-1;background:var(--accent);color:var(--accent-ink)}
+.a-applied{background:var(--ok-soft);color:var(--ok)}
+.a-short{background:var(--info-soft);color:var(--info)}
+.a-tailor{background:var(--accent-soft);color:var(--accent)}
+.a-skip{background:var(--skip-soft);color:var(--skip)}
+.a-undo{grid-column:1/-1;background:none;border:1px dashed var(--line2);color:var(--ink3)}
+
+/* inbox + setup forms */
+.formcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:14px 0}
+.formcard label{font-weight:600;font-size:13px;display:block;margin-bottom:6px}
+.formcard textarea,.formcard input{
+  width:100%;padding:9px 11px;border:1px solid var(--line2);border-radius:9px;
+  background:var(--paper);color:var(--ink);font:400 13.5px 'Public Sans',sans-serif;margin-bottom:10px;
+}
+.formcard textarea{min-height:88px;resize:vertical;font-family:'IBM Plex Mono',monospace;font-size:12.5px}
+.formcard textarea:focus-visible,.formcard input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.send{background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;
+  padding:11px 20px;font:700 14px 'Public Sans',sans-serif;cursor:pointer;width:100%}
+.send[disabled]{opacity:.6}
+.hint{font-size:12px;color:var(--ink3);margin:8px 0 0}
+.inbox-item{border-left:3px solid var(--info);padding:8px 12px;margin-bottom:8px;background:var(--card);
+  border-radius:0 10px 10px 0;font-size:13px;word-break:break-all}
+.inbox-item .ts{color:var(--ink3);font-size:11px;font-family:'IBM Plex Mono',monospace}
+
+/* files */
+.file-card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:13px 14px;margin-bottom:8px}
+.file-card .fi{flex:1;min-width:0}
+.file-card .fl{font-weight:600;font-size:14px}
+.file-card .fn{color:var(--ink3);font-size:11px;font-family:'IBM Plex Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-card button{background:var(--ink);color:var(--paper);border:0;border-radius:9px;padding:9px 14px;
+  font:700 13px 'Public Sans',sans-serif;cursor:pointer;flex-shrink:0}
+
+.note{background:var(--info-soft);color:var(--info);border-radius:10px;padding:10px 14px;font-size:13px;margin:14px 0}
+.toast{
+  position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:999px;
+  font:600 13px 'Public Sans',sans-serif;z-index:50;opacity:0;transition:all .22s;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+h3.sec{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15px;margin:20px 0 8px;color:var(--ink2)}
+
+/* setup screen */
+#setup{max-width:480px;margin:0 auto;padding:40px 20px}
+#setup h1{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:28px;letter-spacing:-.02em;margin:0 0 4px}
+#setup h1 .dot{color:var(--accent)}
+#setup p.lead{color:var(--ink2);font-size:14px;margin:0 0 20px}
+@media (prefers-reduced-motion: reduce){ .sheet,.backdrop,.toast{transition:none} }
+</style>
+</head>
+<body>
+
+<div id="setup" hidden>
+  <h1>Apply Ops<span class="dot">.</span></h1>
+  <p class="lead">Connect this app to your data repository. You only do this once per device — the details stay in this browser and are sent only to api.github.com.</p>
+  <div class="formcard">
+    <label for="suRepo">Data repository</label>
+    <input type="text" id="suRepo" placeholder="username/apply-ops-data" autocapitalize="none" autocorrect="off">
+    <label for="suToken">Fine-grained access token</label>
+    <input type="password" id="suToken" placeholder="github_pat_…" autocapitalize="none" autocorrect="off">
+    <button class="send" id="suGo">Connect</button>
+    <p class="hint">Create the token at github.com → Settings → Developer settings → Fine-grained tokens. Give it access to only the data repository, with <b>Contents: read and write</b> and <b>Actions: read and write</b>.</p>
+  </div>
+</div>
+
+<div id="app" hidden>
+<header class="top">
+  <div class="brand">
+    <h1>Apply Ops<span class="dot">.</span></h1>
+    <span class="sync" id="syncLabel">loading…</span>
+    <button class="iconbtn" id="refreshBtn" title="Refresh jobs now" aria-label="Refresh jobs now">↻</button>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="queue">Queue<span class="n" id="nQueue"></span></button>
+    <button role="tab" aria-selected="false" data-tab="pipeline">Pipeline<span class="n" id="nPipe"></span></button>
+    <button role="tab" aria-selected="false" data-tab="inbox">Inbox<span class="n" id="nInbox"></span></button>
+    <button role="tab" aria-selected="false" data-tab="files">Files</button>
+  </nav>
+</header>
+
+<div class="wrap">
+  <section class="panel active" id="panel-queue">
+    <div class="filters">
+      <input type="search" id="q" placeholder="Search title, employer, city…" aria-label="Search jobs">
+      <button class="chip" id="fLmia" aria-pressed="false">LMIA confirmed</button>
+      <button class="chip" id="fHideSkip" aria-pressed="true">Hide skipped</button>
+      <select class="chip" id="fProv" aria-label="Province"><option value="">All provinces</option></select>
+      <select class="chip" id="fNoc" aria-label="NOC"><option value="">All NOCs</option></select>
+    </div>
+    <div id="queueList"></div>
+    <button class="morebtn" id="moreBtn" hidden>Show more</button>
+  </section>
+
+  <section class="panel" id="panel-pipeline">
+    <h3 class="sec">Applications sent</h3>
+    <div id="appsList"></div>
+    <h3 class="sec">Acted on from this phone</h3>
+    <div id="actedList"></div>
+  </section>
+
+  <section class="panel" id="panel-inbox">
+    <div class="formcard">
+      <label for="urlBox">Paste job URLs — one per line</label>
+      <textarea id="urlBox" placeholder="https://www.linkedin.com/jobs/view/…&#10;https://ca.indeed.com/…"></textarea>
+      <label for="noteBox">Note (optional)</label>
+      <input type="text" id="noteBox" placeholder="e.g. from Indeed alert, looks like a strong fit">
+      <button class="send" id="sendUrls">Add to import queue</button>
+      <p class="hint">Claude picks these up next session, imports them into the queue, and tailors anything you flagged.</p>
+    </div>
+    <h3 class="sec">Waiting for import</h3>
+    <div id="inboxList"></div>
+  </section>
+
+  <section class="panel" id="panel-files">
+    <p class="note">Ready-to-send documents from your data repo. Tap Save to download — then attach to an application or email.</p>
+    <div id="filesList"></div>
+  </section>
+</div>
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Job details">
+  <div class="grab"></div>
+  <div id="sheetBody"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- GitHub data layer ---------- */
+const API = 'https://api.github.com';
+let cfg = null;              // {repo, token}
+const shas = {};             // path -> blob sha for writes
+
+function loadCfg(){
+  try { const raw = localStorage.getItem('ao-cfg'); if (raw) cfg = JSON.parse(raw); } catch(e){}
+}
+function saveCfg(){ try { localStorage.setItem('ao-cfg', JSON.stringify(cfg)); } catch(e){} }
+
+function gh(path, opts = {}){
+  return fetch(API + '/repos/' + cfg.repo + path, {
+    ...opts,
+    headers: {
+      'Authorization': 'Bearer ' + cfg.token,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      ...(opts.headers || {}),
+    },
+  });
+}
+async function readJSON(path){
+  const r = await gh('/contents/' + path, { headers: { 'Accept': 'application/vnd.github.raw+json' } });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('read ' + path + ': HTTP ' + r.status);
+  // capture sha for later writes via a HEAD-ish metadata call only when needed
+  return await r.json();
+}
+async function fetchSha(path){
+  const r = await gh('/contents/' + path);
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('sha ' + path + ': HTTP ' + r.status);
+  const j = await r.json();
+  return j.sha;
+}
+function b64encodeUtf8(str){
+  return btoa(String.fromCharCode(...new TextEncoder().encode(str)));
+}
+async function writeJSON(path, obj, message){
+  const sha = shas[path] !== undefined ? shas[path] : await fetchSha(path);
+  const body = { message, content: b64encodeUtf8(JSON.stringify(obj, null, 1)) };
+  if (sha) body.sha = sha;
+  const r = await gh('/contents/' + path, { method: 'PUT', body: JSON.stringify(body) });
+  if (r.status === 409){ // sha conflict — refetch and retry once
+    shas[path] = await fetchSha(path);
+    return writeJSON(path, obj, message);
+  }
+  if (!r.ok) throw new Error('write ' + path + ': HTTP ' + r.status);
+  const j = await r.json();
+  shas[path] = j.content.sha;
+}
+
+/* ---------- state ---------- */
+let jobs = [], apps = [], actions = {}, inbox = [], meta = null;
+let shown = 60;
+const PNP = new Set(['SK','MB','NB','NS','PE','NL','AB']);
+
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('nav.tabs button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('nav.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    $('#panel-' + b.dataset.tab).classList.add('active');
+    try { localStorage.setItem('ao-tab', b.dataset.tab); } catch(e){}
+  });
+});
+
+/* ---------- queue ---------- */
+function jobStatus(j){
+  const a = actions[j.id];
+  if (a) return a.action;
+  return j.status === 'applied' ? 'applied' : 'new';
+}
+function badgeFor(st){
+  return { applied:'<span class="badge b-applied">Applied</span>',
+    shortlist:'<span class="badge b-short">Shortlist</span>',
+    tailor:'<span class="badge b-tailor">Tailor requested</span>',
+    skipped:'<span class="badge b-skip">Skipped</span>' }[st] || '';
+}
+function filteredJobs(){
+  const q = $('#q').value.trim().toLowerCase();
+  const lmiaOnly = $('#fLmia').getAttribute('aria-pressed') === 'true';
+  const hideSkip = $('#fHideSkip').getAttribute('aria-pressed') === 'true';
+  const prov = $('#fProv').value, noc = $('#fNoc').value;
+  return jobs.filter(j => {
+    if (lmiaOnly && j.lmiaC !== 'yes') return false;
+    if (prov && j.province !== prov) return false;
+    if (noc && j.noc !== noc) return false;
+    const st = jobStatus(j);
+    if (hideSkip && st === 'skipped') return false;
+    if (q && !(`${j.title} ${j.employer} ${j.location}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+function renderQueue(){
+  const list = filteredJobs();
+  $('#nQueue').textContent = list.length;
+  const el = $('#queueList');
+  if (!jobs.length){ el.innerHTML = '<p class="empty">No jobs loaded yet.</p>'; $('#moreBtn').hidden = true; return; }
+  if (!list.length){ el.innerHTML = '<p class="empty">Nothing matches these filters.</p>'; $('#moreBtn').hidden = true; return; }
+  el.innerHTML = list.slice(0, shown).map(j => {
+    const st = jobStatus(j);
+    return `<div class="card" data-id="${esc(j.id)}" role="button" tabindex="0">
+      <div class="row1"><span class="title">${esc(j.title)}</span></div>
+      <div class="emp">${esc(j.employer)}${j.location ? ' · ' + esc(j.location) : ''}</div>
+      <div class="meta">
+        ${j.noc ? `<span class="mono">NOC ${esc(j.noc)}</span>` : ''}
+        ${j.salary ? `<span class="mono">${esc(j.salary)}</span>` : ''}
+        ${j.posted ? `<span>${esc(j.posted)}</span>` : ''}
+      </div>
+      <div class="badges">
+        ${j.lmiaC === 'yes' ? '<span class="badge b-lmiac">LMIA ✓</span>' : (j.lmia === 'yes' ? '<span class="badge b-lmia">LMIA flag</span>' : '')}
+        ${PNP.has(j.province) ? '<span class="badge b-src">PNP-fav</span>' : ''}
+        ${j.source && j.source !== 'jobbank' ? `<span class="badge b-src">${esc(j.source)}</span>` : ''}
+        ${badgeFor(st)}
+      </div>
+    </div>`;
+  }).join('');
+  $('#moreBtn').hidden = list.length <= shown;
+}
+$('#moreBtn').addEventListener('click', () => { shown += 60; renderQueue(); });
+['input','change'].forEach(ev => {
+  $('#q').addEventListener(ev, () => { shown = 60; renderQueue(); });
+  $('#fProv').addEventListener(ev, () => { shown = 60; renderQueue(); });
+  $('#fNoc').addEventListener(ev, () => { shown = 60; renderQueue(); });
+});
+['#fLmia','#fHideSkip'].forEach(sel => {
+  $(sel).addEventListener('click', () => {
+    const b = $(sel);
+    b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+    shown = 60; renderQueue();
+  });
+});
+
+/* ---------- bottom sheet ---------- */
+let sheetJob = null;
+function openSheet(j){
+  sheetJob = j;
+  const st = jobStatus(j);
+  $('#sheetBody').innerHTML = `
+    <h2>${esc(j.title)}</h2>
+    <div class="sub">${esc(j.employer)}${j.location ? ' · ' + esc(j.location) : ''}</div>
+    <div class="badges">
+      ${j.lmiaC === 'yes' ? '<span class="badge b-lmiac">LMIA confirmed</span>' : (j.lmia === 'yes' ? '<span class="badge b-lmia">LMIA flagged</span>' : '')}
+      ${PNP.has(j.province) ? '<span class="badge b-src">PNP-favourable province</span>' : ''}
+      ${badgeFor(st)}
+    </div>
+    <dl class="kv">
+      ${j.noc ? `<dt>NOC</dt><dd class="mono">${esc(j.noc)}</dd>` : ''}
+      ${j.salary ? `<dt>Salary</dt><dd class="mono">${esc(j.salary)}</dd>` : ''}
+      ${j.posted ? `<dt>Posted</dt><dd>${esc(j.posted)}</dd>` : ''}
+      ${j.seen ? `<dt>First seen</dt><dd>${esc(j.seen)}</dd>` : ''}
+      <dt>Source</dt><dd>${esc(j.source || 'jobbank')}</dd>
+    </dl>
+    <div class="actions">
+      <a class="abtn a-open" href="${esc(j.url)}" target="_blank" rel="noopener">Open posting ↗</a>
+      <button class="abtn a-applied" data-act="applied">✓ I applied</button>
+      <button class="abtn a-short" data-act="shortlist">☆ Shortlist</button>
+      <button class="abtn a-tailor" data-act="tailor">Request tailored CV</button>
+      <button class="abtn a-skip" data-act="skipped">Skip</button>
+      ${actions[j.id] ? '<button class="abtn a-undo" data-act="undo">Undo my mark</button>' : ''}
+    </div>`;
+  $('#backdrop').classList.add('show');
+  $('#sheet').classList.add('show');
+}
+function closeSheet(){
+  sheetJob = null;
+  $('#backdrop').classList.remove('show');
+  $('#sheet').classList.remove('show');
+}
+$('#backdrop').addEventListener('click', closeSheet);
+$('#queueList').addEventListener('click', e => {
+  const c = e.target.closest('.card'); if (!c) return;
+  const j = jobs.find(x => x.id === c.dataset.id); if (j) openSheet(j);
+});
+$('#queueList').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const c = e.target.closest('.card'); if (!c) return;
+  e.preventDefault();
+  const j = jobs.find(x => x.id === c.dataset.id); if (j) openSheet(j);
+});
+$('#sheet').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-act]'); if (!b || !sheetJob) return;
+  const act = b.dataset.act, j = sheetJob;
+  b.disabled = true;
+  try {
+    if (act === 'undo') delete actions[j.id];
+    else actions[j.id] = { job_id: j.id, action: act, ts: new Date().toISOString(),
+      title: j.title, employer: j.employer, url: j.url, noc: j.noc || '', location: j.location || '' };
+    await writeJSON('actions.json', actions,
+      (act === 'undo' ? 'undo mark: ' : act + ': ') + j.employer + ' — ' + j.title);
+    toast({applied:'Marked applied',shortlist:'Shortlisted',tailor:'Tailor requested — ready next session',skipped:'Skipped',undo:'Mark removed'}[act] || 'Saved');
+    closeSheet(); renderQueue(); renderPipeline();
+  } catch(err){
+    b.disabled = false;
+    toast('Could not save — check connection');
+  }
+});
+
+/* ---------- pipeline ---------- */
+function renderPipeline(){
+  const el = $('#appsList');
+  el.innerHTML = apps.length ? apps.map(a => `
+    <div class="card" style="cursor:default">
+      <div class="row1"><span class="title">${esc(a.role)}</span>
+        ${a.grade ? `<span class="badge b-grade">${esc(a.grade)}</span>` : ''}</div>
+      <div class="emp">${esc(a.company)}</div>
+      <div class="meta"><span>${esc(a.date)}</span>${a.sponsor ? `<span>${esc(a.sponsor)}</span>` : ''}</div>
+      <div class="badges">${a.applied === 'yes' ? '<span class="badge b-applied">Submitted</span>' : '<span class="badge b-tailor">Draft</span>'}</div>
+    </div>`).join('') : '<p class="empty">No applications tracked yet.</p>';
+
+  const acted = Object.values(actions).sort((a,b) => (b.ts||'').localeCompare(a.ts||''));
+  $('#nPipe').textContent = apps.length + acted.length;
+  $('#actedList').innerHTML = acted.length ? acted.map(a => `
+    <div class="card" style="cursor:default">
+      <div class="row1"><span class="title">${esc(a.title)}</span></div>
+      <div class="emp">${esc(a.employer)}</div>
+      <div class="badges">${badgeFor(a.action)}<span class="badge b-src mono">${esc((a.ts||'').slice(0,10))}</span></div>
+    </div>`).join('') : '<p class="empty">Nothing yet — act on queue items and they show here.</p>';
+}
+
+/* ---------- inbox ---------- */
+$('#sendUrls').addEventListener('click', async () => {
+  const raw = $('#urlBox').value.trim();
+  if (!raw){ toast('Paste at least one URL'); return; }
+  const urls = raw.split(/\s+/).filter(u => /^https?:\/\//i.test(u));
+  if (!urls.length){ toast('No valid URLs found'); return; }
+  const note = $('#noteBox').value.trim();
+  const btn = $('#sendUrls'); btn.disabled = true;
+  try {
+    const ts = new Date().toISOString();
+    for (const url of urls) inbox.unshift({ url, note, ts, status: 'new' });
+    await writeJSON('inbox.json', { items: inbox }, 'inbox: +' + urls.length + ' URL(s)');
+    $('#urlBox').value = ''; $('#noteBox').value = '';
+    toast(urls.length + (urls.length === 1 ? ' URL queued' : ' URLs queued'));
+    renderInbox();
+  } catch(err){ toast('Could not save — check connection'); }
+  btn.disabled = false;
+});
+function renderInbox(){
+  const pending = inbox.filter(i => i.status === 'new');
+  $('#nInbox').textContent = pending.length || '';
+  $('#inboxList').innerHTML = pending.length ? pending.map(i => `
+    <div class="inbox-item">
+      <div>${esc(i.url)}</div>
+      ${i.note ? `<div style="color:var(--ink2)">${esc(i.note)}</div>` : ''}
+      <div class="ts">${esc((i.ts||'').replace('T',' ').slice(0,16))}</div>
+    </div>`).join('') : '<p class="empty">Import queue is empty.</p>';
+}
+
+/* ---------- files ---------- */
+let fileIndex = [];
+function renderFiles(){
+  $('#filesList').innerHTML = fileIndex.length ? fileIndex.map((f, i) => `
+    <div class="file-card">
+      <div class="fi"><div class="fl">${esc(f.label)}</div>
+        <div class="fn">${esc(f.name)}${f.size ? ' · ' + Math.round(f.size/1024) + ' KB' : ''}</div></div>
+      <button data-fi="${i}">Save</button>
+    </div>`).join('') : '<p class="empty">No documents yet.</p>';
+}
+$('#filesList').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-fi]'); if (!b) return;
+  const f = fileIndex[+b.dataset.fi];
+  b.disabled = true; b.textContent = '…';
+  try {
+    const r = await gh('/contents/files/' + encodeURIComponent(f.name), { headers: { 'Accept': 'application/vnd.github.raw+json' } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = f.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+  } catch(err){ toast('Could not download'); }
+  b.disabled = false; b.textContent = 'Save';
+});
+
+/* ---------- refresh jobs ---------- */
+$('#refreshBtn').addEventListener('click', async () => {
+  const b = $('#refreshBtn'); b.disabled = true;
+  try {
+    const r = await gh('/actions/workflows/refresh.yml/dispatches', {
+      method: 'POST', body: JSON.stringify({ ref: 'main' }),
+    });
+    if (r.status === 204) toast('Refreshing… new jobs in ~2 min, then reload');
+    else if (r.status === 403 || r.status === 404) toast('Token needs Actions: read and write');
+    else toast('Could not start refresh');
+  } catch(err){ toast('Could not start refresh'); }
+  setTimeout(() => { b.disabled = false; }, 5000);
+});
+
+/* ---------- filters ---------- */
+function populateFilterOptions(){
+  const provs = [...new Set(jobs.map(j => j.province).filter(Boolean))].sort();
+  $('#fProv').innerHTML = '<option value="">All provinces</option>' + provs.map(p => `<option>${esc(p)}</option>`).join('');
+  const nocs = [...new Set(jobs.map(j => j.noc).filter(Boolean))].sort();
+  $('#fNoc').innerHTML = '<option value="">All NOCs</option>' + nocs.map(n => `<option>${esc(n)}</option>`).join('');
+}
+
+/* ---------- load ---------- */
+async function loadAll(){
+  const [qd, ad, act, inb, md, fi] = await Promise.all([
+    readJSON('queue.json'), readJSON('apps.json'), readJSON('actions.json'),
+    readJSON('inbox.json'), readJSON('meta.json'), readJSON('files/index.json'),
+  ]);
+  jobs = qd && qd.jobs || [];
+  apps = ad && ad.rows || [];
+  actions = act || {};
+  inbox = inb && inb.items || [];
+  meta = md;
+  fileIndex = fi && fi.files || [];
+  $('#syncLabel').textContent = meta && meta.lastRefresh ? '↻ ' + meta.lastRefresh.slice(0, 16) : '';
+  populateFilterOptions();
+  renderQueue(); renderPipeline(); renderInbox(); renderFiles();
+}
+
+async function start(){
+  loadCfg();
+  if (!cfg || !cfg.repo || !cfg.token){
+    $('#setup').hidden = false;
+    return;
+  }
+  $('#app').hidden = false;
+  try {
+    const t = localStorage.getItem('ao-tab');
+    if (t && $('#panel-' + t)) document.querySelector(`[data-tab="${t}"]`).click();
+  } catch(e){}
+  try { await loadAll(); }
+  catch(err){
+    toast('Could not load data — check token/repo');
+    $('#app').hidden = true; $('#setup').hidden = false;
+    if (cfg){ $('#suRepo').value = cfg.repo; }
+  }
+}
+
+$('#suGo').addEventListener('click', async () => {
+  const repo = $('#suRepo').value.trim().replace(/^https:\/\/github\.com\//, '').replace(/\/$/, '');
+  const token = $('#suToken').value.trim();
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)){ toast('Repository must look like username/repo-name'); return; }
+  if (!token){ toast('Paste the access token'); return; }
+  cfg = { repo, token };
+  const btn = $('#suGo'); btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    const r = await gh('/contents/meta.json', { headers: { 'Accept': 'application/vnd.github.raw+json' } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    saveCfg();
+    $('#setup').hidden = true; $('#app').hidden = false;
+    await loadAll();
+    toast('Connected');
+  } catch(err){
+    cfg = null;
+    toast('Could not connect — check the repo name and token access');
+  }
+  btn.disabled = false; btn.textContent = 'Connect';
+});
+
+start();
+</script>
+</body>
+</html>
