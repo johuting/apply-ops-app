@@ -75,9 +75,14 @@ nav.tabs button .n{font-family:'IBM Plex Mono',monospace;font-size:11px;color:va
   appearance:none;border:1px solid var(--line2);background:var(--card);color:var(--ink2);
   font:600 12px 'Public Sans',sans-serif;padding:6px 11px;border-radius:999px;cursor:pointer;
 }
-.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip[aria-pressed="true"],.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+#profileRow .chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .chip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 select.chip{padding:6px 8px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 2px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 11px;min-width:0}
+.stat .v{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat .l{font-size:10.5px;color:var(--ink3);letter-spacing:.02em}
 
 .card{
   background:var(--card);border:1px solid var(--line);border-radius:12px;
@@ -213,6 +218,7 @@ h3.sec{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15
 <div class="wrap">
   <section class="panel active" id="panel-queue">
     <div class="filters" id="profileRow" style="padding-bottom:0"></div>
+    <div class="stats" id="queueStats"></div>
     <div class="filters">
       <input type="search" id="q" placeholder="Search title, employer, city…" aria-label="Search jobs">
       <button class="chip" id="fLmia" aria-pressed="false">LMIA confirmed</button>
@@ -226,6 +232,7 @@ h3.sec{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15
       <select class="chip" id="fProv" aria-label="Province"><option value="">All provinces</option></select>
       <select class="chip" id="fNoc" aria-label="NOC"><option value="">All NOCs</option></select>
       <select class="chip" id="fSrc" aria-label="Source"><option value="">All sources</option></select>
+      <button class="chip" id="fReset" hidden>✕ Reset filters</button>
     </div>
     <div id="queueList"></div>
     <button class="morebtn" id="moreBtn" hidden>Show more</button>
@@ -233,6 +240,7 @@ h3.sec{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15
   </section>
 
   <section class="panel" id="panel-pipeline">
+    <div class="stats" id="pipeStats"></div>
     <h3 class="sec">Applications sent</h3>
     <div id="appsList"></div>
     <h3 class="sec">Acted on from this phone</h3>
@@ -330,6 +338,15 @@ let shown = 60;
 const PNP = new Set(['SK','MB','NB','NS','PE','NL','AB']);
 try { selProfile = localStorage.getItem('ao-profile') || ''; } catch(e){}
 
+function rel(dateStr){
+  const d = Date.parse(dateStr + 'T00:00:00');
+  if (Number.isNaN(d)) return esc(dateStr);
+  const days = Math.floor((Date.now() - d) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days <= 13) return days + ' days ago';
+  return esc(dateStr);
+}
 function toast(msg){
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2400);
@@ -391,6 +408,7 @@ $('#profileRow').addEventListener('click', e => {
   renderProfileRow(); shown = 60; renderQueue();
 });
 function renderQueue(){
+  renderQueueStats(); refreshFilterLook();
   const list = filteredJobs();
   $('#nQueue').textContent = list.length;
   const el = $('#queueList');
@@ -404,7 +422,8 @@ function renderQueue(){
       <div class="meta">
         ${j.noc ? `<span class="mono">NOC ${esc(j.noc)}</span>` : ''}
         ${j.salary ? `<span class="mono">${esc(j.salary)}</span>` : ''}
-        ${j.seen ? `<span>Added ${esc(j.seen)}</span>` : (j.posted ? `<span>${esc(j.posted)}</span>` : '')}
+        ${j.posted ? `<span>${/^posted/i.test(j.posted) ? esc(j.posted) : 'Posted ' + esc(j.posted)}</span>` : ''}
+        ${j.seen ? `<span><b>Added ${rel(j.seen)}</b></span>` : ''}
       </div>
       <div class="badges">
         ${j.lmiaC === 'yes' ? '<span class="badge b-lmiac">LMIA ✓</span>' : (j.lmia === 'yes' ? '<span class="badge b-lmia">LMIA flag</span>' : '')}
@@ -417,6 +436,51 @@ function renderQueue(){
   $('#moreBtn').hidden = list.length <= shown;
   $('#clearBtn').hidden = !list.length;
   $('#clearBtn').textContent = `Remove all ${list.length} filtered jobs from queue…`;
+}
+function anyFilterActive(){
+  return !!($('#q').value.trim() || $('#fProv').value || $('#fNoc').value || $('#fSrc').value || $('#fAge').value
+    || $('#fLmia').getAttribute('aria-pressed') === 'true'
+    || $('#fHideSkip').getAttribute('aria-pressed') !== 'true');
+}
+function refreshFilterLook(){
+  ['#fAge','#fProv','#fNoc','#fSrc'].forEach(sel => $(sel).classList.toggle('on', !!$(sel).value));
+  $('#fReset').hidden = !anyFilterActive();
+}
+$('#fReset').addEventListener('click', () => {
+  $('#q').value = ''; $('#fProv').value = ''; $('#fNoc').value = ''; $('#fSrc').value = ''; $('#fAge').value = '';
+  $('#fLmia').setAttribute('aria-pressed', 'false');
+  $('#fHideSkip').setAttribute('aria-pressed', 'true');
+  shown = 60; refreshFilterLook(); renderQueue();
+});
+function renderQueueStats(){
+  const scope = jobs.filter(j => !removed[j.id] && (!selProfile || (j.profiles || []).includes(selProfile)));
+  const today = new Date().toISOString().slice(0,10);
+  const week = new Date(Date.now() - 7 * 86400000).toISOString().slice(0,10);
+  const tiles = [
+    { v: scope.filter(j => j.seen === today).length, l: 'added today' },
+    { v: scope.filter(j => (j.seen || '') >= week).length, l: 'added 7 days' },
+    { v: scope.filter(j => j.lmiaC === 'yes').length, l: 'LMIA confirmed' },
+    { v: scope.length, l: selProfile ? 'in this profile' : 'total in queue' },
+  ];
+  $('#queueStats').innerHTML = tiles.map(t => `<div class="stat"><div class="v">${t.v}</div><div class="l">${t.l}</div></div>`).join('');
+}
+function renderPipeStats(){
+  const acted = Object.values(actions);
+  const submittedApps = apps.filter(a => a.applied === 'yes');
+  const drafts = apps.filter(a => a.applied !== 'yes');
+  const appliedActs = acted.filter(a => a.action === 'applied');
+  const cutoff = d => new Date(Date.now() - d * 86400000).toISOString();
+  const appliedWithin = d => new Set([
+    ...appliedActs.filter(a => (a.ts || '') >= cutoff(d)).map(a => a.url),
+    ...submittedApps.filter(a => (a.date || '') >= cutoff(d).slice(0,10)).map(a => a.url),
+  ]).size;
+  const tiles = [
+    { v: appliedWithin(1), l: 'applied 24 h' },
+    { v: appliedWithin(7), l: 'applied 7 days' },
+    { v: new Set([...submittedApps.map(a => a.url), ...appliedActs.map(a => a.url)]).size, l: 'submitted total' },
+    { v: drafts.length + acted.filter(a => a.action === 'tailor').length, l: 'drafts + queued' },
+  ];
+  $('#pipeStats').innerHTML = tiles.map(t => `<div class="stat"><div class="v">${t.v}</div><div class="l">${t.l}</div></div>`).join('');
 }
 $('#moreBtn').addEventListener('click', () => { shown += 60; renderQueue(); });
 ['input','change'].forEach(ev => {
@@ -527,6 +591,7 @@ $('#sheet').addEventListener('click', async e => {
 
 /* ---------- pipeline ---------- */
 function renderPipeline(){
+  renderPipeStats();
   const el = $('#appsList');
   el.innerHTML = apps.length ? apps.map(a => `
     <div class="card" style="cursor:default">
