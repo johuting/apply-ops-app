@@ -212,15 +212,24 @@ h3.sec{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15
 
 <div class="wrap">
   <section class="panel active" id="panel-queue">
+    <div class="filters" id="profileRow" style="padding-bottom:0"></div>
     <div class="filters">
       <input type="search" id="q" placeholder="Search title, employer, city…" aria-label="Search jobs">
       <button class="chip" id="fLmia" aria-pressed="false">LMIA confirmed</button>
       <button class="chip" id="fHideSkip" aria-pressed="true">Hide skipped</button>
+      <select class="chip" id="fAge" aria-label="Added within">
+        <option value="">Added any time</option>
+        <option value="7">Added last 7 days</option>
+        <option value="14">Added last 14 days</option>
+        <option value="30">Added last 30 days</option>
+      </select>
       <select class="chip" id="fProv" aria-label="Province"><option value="">All provinces</option></select>
       <select class="chip" id="fNoc" aria-label="NOC"><option value="">All NOCs</option></select>
+      <select class="chip" id="fSrc" aria-label="Source"><option value="">All sources</option></select>
     </div>
     <div id="queueList"></div>
     <button class="morebtn" id="moreBtn" hidden>Show more</button>
+    <button class="morebtn" id="clearBtn" hidden style="color:var(--accent);border-color:var(--accent)">Remove all filtered jobs from queue…</button>
   </section>
 
   <section class="panel" id="panel-pipeline">
@@ -316,8 +325,10 @@ async function writeJSON(path, obj, message){
 
 /* ---------- state ---------- */
 let jobs = [], apps = [], actions = {}, inbox = [], meta = null;
+let profiles = [], selProfile = '', removed = {};
 let shown = 60;
 const PNP = new Set(['SK','MB','NB','NS','PE','NL','AB']);
+try { selProfile = localStorage.getItem('ao-profile') || ''; } catch(e){}
 
 function toast(msg){
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
@@ -350,17 +361,35 @@ function filteredJobs(){
   const q = $('#q').value.trim().toLowerCase();
   const lmiaOnly = $('#fLmia').getAttribute('aria-pressed') === 'true';
   const hideSkip = $('#fHideSkip').getAttribute('aria-pressed') === 'true';
-  const prov = $('#fProv').value, noc = $('#fNoc').value;
+  const prov = $('#fProv').value, noc = $('#fNoc').value, src = $('#fSrc').value;
+  const ageDays = +$('#fAge').value || 0;
+  const minSeen = ageDays ? new Date(Date.now() - ageDays * 86400000).toISOString().slice(0,10) : '';
   return jobs.filter(j => {
+    if (removed[j.id]) return false;
+    if (selProfile && !(j.profiles || []).includes(selProfile)) return false;
     if (lmiaOnly && j.lmiaC !== 'yes') return false;
     if (prov && j.province !== prov) return false;
     if (noc && j.noc !== noc) return false;
+    if (src && j.source !== src) return false;
+    if (minSeen && (j.seen || '') < minSeen) return false;
     const st = jobStatus(j);
     if (hideSkip && st === 'skipped') return false;
     if (q && !(`${j.title} ${j.employer} ${j.location}`.toLowerCase().includes(q))) return false;
     return true;
   });
 }
+function renderProfileRow(){
+  const row = $('#profileRow');
+  const chips = [{ id: '', label: 'All' }, ...profiles.map(p => ({ id: p.id, label: p.label }))];
+  row.innerHTML = chips.map(c =>
+    `<button class="chip" data-prof="${esc(c.id)}" aria-pressed="${c.id === selProfile}">${esc(c.label)}</button>`).join('');
+}
+$('#profileRow').addEventListener('click', e => {
+  const b = e.target.closest('[data-prof]'); if (!b) return;
+  selProfile = b.dataset.prof;
+  try { localStorage.setItem('ao-profile', selProfile); } catch(err){}
+  renderProfileRow(); shown = 60; renderQueue();
+});
 function renderQueue(){
   const list = filteredJobs();
   $('#nQueue').textContent = list.length;
@@ -375,7 +404,7 @@ function renderQueue(){
       <div class="meta">
         ${j.noc ? `<span class="mono">NOC ${esc(j.noc)}</span>` : ''}
         ${j.salary ? `<span class="mono">${esc(j.salary)}</span>` : ''}
-        ${j.posted ? `<span>${esc(j.posted)}</span>` : ''}
+        ${j.seen ? `<span>Added ${esc(j.seen)}</span>` : (j.posted ? `<span>${esc(j.posted)}</span>` : '')}
       </div>
       <div class="badges">
         ${j.lmiaC === 'yes' ? '<span class="badge b-lmiac">LMIA ✓</span>' : (j.lmia === 'yes' ? '<span class="badge b-lmia">LMIA flag</span>' : '')}
@@ -386,12 +415,33 @@ function renderQueue(){
     </div>`;
   }).join('');
   $('#moreBtn').hidden = list.length <= shown;
+  $('#clearBtn').hidden = !list.length;
+  $('#clearBtn').textContent = `Remove all ${list.length} filtered jobs from queue…`;
 }
 $('#moreBtn').addEventListener('click', () => { shown += 60; renderQueue(); });
 ['input','change'].forEach(ev => {
   $('#q').addEventListener(ev, () => { shown = 60; renderQueue(); });
   $('#fProv').addEventListener(ev, () => { shown = 60; renderQueue(); });
   $('#fNoc').addEventListener(ev, () => { shown = 60; renderQueue(); });
+  $('#fSrc').addEventListener(ev, () => { shown = 60; renderQueue(); });
+  $('#fAge').addEventListener(ev, () => { shown = 60; renderQueue(); });
+});
+$('#clearBtn').addEventListener('click', async () => {
+  const list = filteredJobs();
+  if (!list.length) return;
+  if (!confirm(`Remove ${list.length} job(s) from the queue? They will not come back on the next refresh.`)) return;
+  const ts = new Date().toISOString();
+  for (const j of list) removed[j.id] = ts;
+  const b = $('#clearBtn'); b.disabled = true;
+  try {
+    await writeJSON('removed.json', removed, `remove ${list.length} filtered job(s) from phone`);
+    toast(list.length + ' removed');
+    renderQueue();
+  } catch(err){
+    for (const j of list) delete removed[j.id];
+    toast('Could not save — check connection');
+  }
+  b.disabled = false;
 });
 ['#fLmia','#fHideSkip'].forEach(sel => {
   $(sel).addEventListener('click', () => {
@@ -428,6 +478,7 @@ function openSheet(j){
       <button class="abtn a-tailor" data-act="tailor">Request tailored CV</button>
       <button class="abtn a-skip" data-act="skipped">Skip</button>
       ${actions[j.id] ? '<button class="abtn a-undo" data-act="undo">Undo my mark</button>' : ''}
+      <button class="abtn a-undo" data-act="remove">Remove from queue</button>
     </div>`;
   $('#backdrop').classList.add('show');
   $('#sheet').classList.add('show');
@@ -453,9 +504,17 @@ $('#sheet').addEventListener('click', async e => {
   const act = b.dataset.act, j = sheetJob;
   b.disabled = true;
   try {
+    if (act === 'remove'){
+      removed[j.id] = new Date().toISOString();
+      await writeJSON('removed.json', removed, 'remove from queue: ' + j.employer + ' — ' + j.title);
+      toast('Removed from queue');
+      closeSheet(); renderQueue(); renderPipeline();
+      return;
+    }
     if (act === 'undo') delete actions[j.id];
     else actions[j.id] = { job_id: j.id, action: act, ts: new Date().toISOString(),
-      title: j.title, employer: j.employer, url: j.url, noc: j.noc || '', location: j.location || '' };
+      title: j.title, employer: j.employer, url: j.url, noc: j.noc || '', location: j.location || '',
+      profile: (j.profiles || [])[0] || '' };
     await writeJSON('actions.json', actions,
       (act === 'undo' ? 'undo mark: ' : act + ': ') + j.employer + ' — ' + j.title);
     toast({applied:'Marked applied',shortlist:'Shortlisted',tailor:'Tailor requested — ready next session',skipped:'Skipped',undo:'Mark removed'}[act] || 'Saved');
@@ -523,7 +582,7 @@ function renderFiles(){
   $('#filesList').innerHTML = fileIndex.length ? fileIndex.map((f, i) => `
     <div class="file-card">
       <div class="fi"><div class="fl">${esc(f.label)}</div>
-        <div class="fn">${esc(f.name)}${f.size ? ' · ' + Math.round(f.size/1024) + ' KB' : ''}</div></div>
+        <div class="fn">${f.added ? 'Added ' + esc(f.added) + ' · ' : ''}${esc(f.name)}${f.size ? ' · ' + Math.round(f.size/1024) + ' KB' : ''}</div></div>
       <button data-fi="${i}">Save</button>
     </div>`).join('') : '<p class="empty">No documents yet.</p>';
 }
@@ -568,9 +627,10 @@ function populateFilterOptions(){
 
 /* ---------- load ---------- */
 async function loadAll(){
-  const [qd, ad, act, inb, md, fi] = await Promise.all([
+  const [qd, ad, act, inb, md, fi, pf, rm] = await Promise.all([
     readJSON('queue.json'), readJSON('apps.json'), readJSON('actions.json'),
     readJSON('inbox.json'), readJSON('meta.json'), readJSON('files/index.json'),
+    readJSON('profiles.json'), readJSON('removed.json'),
   ]);
   jobs = qd && qd.jobs || [];
   apps = ad && ad.rows || [];
@@ -578,8 +638,14 @@ async function loadAll(){
   inbox = inb && inb.items || [];
   meta = md;
   fileIndex = fi && fi.files || [];
+  profiles = pf && pf.profiles || [];
+  removed = rm || {};
+  if (selProfile && !profiles.some(p => p.id === selProfile)) selProfile = '';
   $('#syncLabel').textContent = meta && meta.lastRefresh ? '↻ ' + meta.lastRefresh.slice(0, 16) : '';
+  const srcs = [...new Set(jobs.map(j => j.source).filter(Boolean))].sort();
+  $('#fSrc').innerHTML = '<option value="">All sources</option>' + srcs.map(s => `<option>${esc(s)}</option>`).join('');
   populateFilterOptions();
+  renderProfileRow();
   renderQueue(); renderPipeline(); renderInbox(); renderFiles();
 }
 
