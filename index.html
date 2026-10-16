@@ -543,9 +543,23 @@ function openSheet(j){
       <button class="abtn a-skip" data-act="skipped">Skip</button>
       ${actions[j.id] ? '<button class="abtn a-undo" data-act="undo">Undo my mark</button>' : ''}
       <button class="abtn a-undo" data-act="remove">Remove from queue</button>
-    </div>`;
+    </div>
+    ${j.jd ? '<div id="jdBox"></div>' : ''}`;
+  if (j.jd) loadJD(j);
   $('#backdrop').classList.add('show');
   $('#sheet').classList.add('show');
+}
+async function loadJD(j){
+  const box = document.getElementById('jdBox'); if (!box) return;
+  box.innerHTML = '<p class="empty" style="padding:12px 0">Loading saved description…</p>';
+  try {
+    const r = await gh('/contents/jd/' + encodeURIComponent(j.id) + '.txt', { headers: { 'Accept': 'application/vnd.github.raw+json' } });
+    if (!r.ok) throw new Error();
+    const text = await r.text();
+    if (sheetJob !== j) return; // sheet changed while loading
+    box.innerHTML = '<h3 class="sec" style="margin-top:16px">Job description (saved copy)</h3>' +
+      '<div style="font-size:13px;line-height:1.5;color:var(--ink2);max-height:38vh;overflow-y:auto;white-space:pre-wrap;border-top:1px solid var(--line);padding-top:8px">' + esc(text) + '</div>';
+  } catch(err){ box.innerHTML = ''; }
 }
 function closeSheet(){
   sheetJob = null;
