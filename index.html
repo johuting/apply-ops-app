@@ -222,7 +222,7 @@ h3.sec{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:15
     <div class="filters">
       <input type="search" id="q" placeholder="Search title, employer, city…" aria-label="Search jobs">
       <button class="chip" id="fLmia" aria-pressed="false">LMIA confirmed</button>
-      <button class="chip" id="fHideSkip" aria-pressed="true">Hide skipped</button>
+      <button class="chip" id="fHideSkip" aria-pressed="true">Hide done</button>
       <select class="chip" id="fAge" aria-label="Added within">
         <option value="">Added any time</option>
         <option value="7">Added last 7 days</option>
@@ -390,7 +390,7 @@ function filteredJobs(){
     if (src && j.source !== src) return false;
     if (minSeen && (j.seen || '') < minSeen) return false;
     const st = jobStatus(j);
-    if (hideSkip && st === 'skipped') return false;
+    if (hideSkip && (st === 'skipped' || st === 'applied')) return false;
     if (q && !(`${j.title} ${j.employer} ${j.location}`.toLowerCase().includes(q))) return false;
     return true;
   });
